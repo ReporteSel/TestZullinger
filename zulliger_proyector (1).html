@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test de Zulliger</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: Georgia, serif;
+    user-select: none;
+  }
+
+  #stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    overflow: hidden;
+    position: relative;
+  }
+
+  canvas {
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+  }
+
+  #loader {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid #1a1a1a;
+    border-top-color: #444;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  nav {
+    height: 54px;
+    background: #080808;
+    border-top: 1px solid #181818;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .btn-lam {
+    padding: 0.45rem 2.2rem;
+    font-family: Georgia, serif;
+    font-size: 0.95rem;
+    letter-spacing: 0.1em;
+    background: transparent;
+    color: #3a3a3a;
+    border: 1px solid #1e1e1e;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-lam:hover {
+    color: #aaa;
+    border-color: #3a3a3a;
+  }
+
+  .btn-lam.active {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+    font-weight: bold;
+  }
+
+  .btn-fs {
+    position: absolute;
+    right: 1.2rem;
+    font-size: 1rem;
+    background: none;
+    border: none;
+    color: #2a2a2a;
+    cursor: pointer;
+    padding: 0.4rem;
+    transition: color 0.2s;
+    line-height: 1;
+  }
+
+  .btn-fs:hover { color: #666; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="loader"><div class="spinner"></div></div>
+  <canvas id="cv"></canvas>
+</div>
+
+<nav>
+  <button class="btn-lam active" onclick="load('lamina1.pdf', this)">Lámina I</button>
+  <button class="btn-lam"        onclick="load('lamina2.pdf', this)">Lámina II</button>
+  <button class="btn-lam"        onclick="load('lamina3.pdf', this)">Lámina III</button>
+  <button class="btn-fs" onclick="toggleFS()" title="Pantalla completa">⛶</button>
+</nav>
+
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const cv     = document.getElementById('cv');
+  const ctx    = cv.getContext('2d');
+  const loader = document.getElementById('loader');
+  const stage  = document.getElementById('stage');
+  let   current = 'lamina1.pdf';
+
+  async function load(file, btn) {
+    current = file;
+    document.querySelectorAll('.btn-lam').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    loader.style.display = 'flex';
+    cv.style.visibility  = 'hidden';
+
+    const pdf  = await pdfjsLib.getDocument(file).promise;
+    const page = await pdf.getPage(1);
+
+    const sw    = stage.clientWidth;
+    const sh    = stage.clientHeight;
+    const vp0   = page.getViewport({ scale: 1 });
+    const scale = Math.min(sw / vp0.width, sh / vp0.height) * 0.97;
+    const vp    = page.getViewport({ scale });
+
+    cv.width  = vp.width;
+    cv.height = vp.height;
+
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+    loader.style.display = 'none';
+    cv.style.visibility  = 'visible';
+  }
+
+  function toggleFS() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const btn = document.querySelector('.btn-lam.active');
+      if (btn) load(current, btn);
+    }, 150);
+  });
+
+  // Inicio
+  load('lamina1.pdf', document.querySelector('.btn-lam.active'));
+</script>
+</body>
+</html>
